@@ -1,5 +1,16 @@
-import { Api404Error, Api500Error } from "middleware/errorHandler";
+import { generateToken } from "@/utils/jwt";
+import { compare } from "bcrypt";
+import { Api401Error, Api404Error, Api409Error, Api500Error } from "middleware/errorHandler";
 import { CreateUserParams, IUser, User } from 'models/user';
+export interface LoginUserParams {
+    username: string;
+    password: string;
+}
+
+export interface LoginUserData {
+    user: IUser;
+    token: string;
+}
 
 export class UserService {
     // Get all users
@@ -29,6 +40,14 @@ export class UserService {
     async createUser(params: CreateUserParams): Promise<IUser> {
         const { username, email, password } = params;
 
+        if (await User.emailExist(email)) {
+            throw new Api409Error(`Email: ${email} already existed!`, 'validate', 'email');
+        }
+
+        if (await User.usernameExist(username)) {
+            throw new Api409Error(`Username: ${email} already existed!`, 'validate', 'username');
+        }
+
         const user = await User.create({ username, email, password });
         return user;
     }
@@ -42,5 +61,28 @@ export class UserService {
     // Delete a user
     async deleteUser(id: string): Promise<void> {
         await User.delete(id);
+    }
+
+    // Login a user
+    async loginUser(params: LoginUserParams): Promise<LoginUserData> {
+        const { username, password } = params;
+
+        // Check if user exists in database
+        const user = await User.findByUsername(username);
+        if (!user) {
+            throw new Api401Error(`Invalid username or password`);
+        }
+
+        // Check if password is correct
+        const passwordMatch = await compare(password, user.password);
+
+        if (!passwordMatch) {
+            throw new Api401Error(`Invalid username or password`);
+        }
+
+        // Create and return JWT
+        const token = generateToken({ id: user.id, username: user.username });
+
+        return { user, token };
     }
 }

@@ -7,6 +7,7 @@ const USER_TABLE_NAME = "User"
 
 export interface IUser extends RowDataPacket {
     id: number;
+    username: string;
     email: string;
     password: string;
 }
@@ -29,6 +30,43 @@ class UserModel {
         return null;
     }
 
+    async findByUsername(username: string): Promise<IUser | null> {
+        const connection = await getConnection();
+        const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE username = ?`, [username]);
+        connection.release();
+
+        if (rows.length) {
+            return rows[0];
+        }
+        return null;
+    }
+
+    async emailExist(email: string): Promise<boolean> {
+        const connection = await getConnection();
+
+        try {
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE email = ?`, [email]);
+            return rows.length > 0;
+        } catch (error) {
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    async usernameExist(username: string): Promise<boolean> {
+        const connection = await getConnection();
+
+        try {
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE username = ?`, [username]);
+            return rows.length > 0;
+        } catch (error) {
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
     async create(params: CreateUserParams): Promise<IUser> {
         const connection = await getConnection();
 
@@ -48,7 +86,6 @@ class UserModel {
             throw error;
         } finally {
             connection.release();
-
         }
     }
 

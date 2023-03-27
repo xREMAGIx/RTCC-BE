@@ -7,7 +7,7 @@ import helmet from "helmet";
 import { APIError, errorHandler } from "./middleware/errorHandler";
 import { loggerMiddleware } from "./middleware/logger";
 import routes from "./routes";
-import { generateToken } from "./utils/jwt";
+import { generateLocalToken } from "./utils/jwt";
 
 dotenv.config();
 
@@ -39,7 +39,7 @@ app.use(async (err: APIError, req: Request, res: Response, next: NextFunction) =
 
 // Only generate a token for lower level environments
 if (process.env.NODE_ENV !== 'production') {
-    console.log('JWT', generateToken());
+    console.log('JWT', generateLocalToken());
 }
 
 app.listen(process.env.PORT, () => {

@@ -1,4 +1,4 @@
-import { generateToken } from "@/utils/jwt";
+import { generateToken } from "utils/jwt";
 import { compare } from "bcrypt";
 import { Api401Error, Api404Error, Api409Error, Api500Error } from "middleware/errorHandler";
 import { CreateUserParams, IUser, User } from 'models/user';
@@ -24,13 +24,15 @@ export class UserService {
     }
 
     // Get a user by ID
-    async getUserById(userId: string): Promise<IUser | null> {
+    async getUserById(userId: string): Promise<Partial<IUser>> {
         try {
             const user = await User.readById(userId);
-            if (user === null) {
+            if (!user) {
                 throw new Api404Error(`User with id: ${userId} not found`)
             }
-            return user;
+            const resUser = { ...user } as Partial<IUser>;
+            delete resUser.password;
+            return resUser;
         } catch (error) {
             throw new Api500Error();
         }

@@ -110,9 +110,9 @@ class UserModel {
 
     async readById(id: string): Promise<IUser | null> {
         const connection = await getConnection();
+
         try {
             const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
-            connection.release();
 
             if (rows.length) {
                 return rows[0];

@@ -39,7 +39,7 @@ interface TokenPayload {
     userId: number;
 }
 
-interface TokenPayloadParams {
+export interface TokenPayloadParams {
     username: string;
     id: number;
 }

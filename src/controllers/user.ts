@@ -36,7 +36,17 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     try {
         const userData = req.body;
         const user = await userService.loginUser(userData);
-        res.status(201).json({ data: user });
+        res.status(200).json({ data: user });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const getProfileUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { userId } = req.body;
+        const user = await userService.getUserById(userId);
+        res.status(200).json({ data: user });
     } catch (error) {
         next(error);
     }

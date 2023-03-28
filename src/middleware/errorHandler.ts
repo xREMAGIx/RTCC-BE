@@ -69,7 +69,7 @@ class Api500Error extends BaseError {
 
 class ErrorHandler {
     public async handleError(err: Error): Promise<void> {
-        console.log(err);
+        console.log(err.message);
     }
 
     public isTrustedError(error: Error) {

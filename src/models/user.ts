@@ -2,8 +2,7 @@ import bcrypt from 'bcrypt';
 import { Api404Error } from 'middleware/errorHandler';
 import { OkPacket, RowDataPacket } from "mysql2";
 import { getConnection } from 'utils/database';
-
-const USER_TABLE_NAME = "User"
+import { TABLE_NAME } from 'config/table';
 
 export interface IUser extends RowDataPacket {
     id: number;
@@ -21,7 +20,7 @@ export interface CreateUserParams {
 class UserModel {
     async findByEmail(email: string): Promise<IUser | null> {
         const connection = await getConnection();
-        const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE email = ?`, [email]);
+        const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE email = ?`, [email]);
         connection.release();
 
         if (rows.length) {
@@ -32,7 +31,7 @@ class UserModel {
 
     async findByUsername(username: string): Promise<IUser | null> {
         const connection = await getConnection();
-        const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE username = ?`, [username]);
+        const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE username = ?`, [username]);
         connection.release();
 
         if (rows.length) {
@@ -45,7 +44,7 @@ class UserModel {
         const connection = await getConnection();
 
         try {
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE email = ?`, [email]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE email = ?`, [email]);
             return rows.length > 0;
         } catch (error) {
             throw error;
@@ -58,7 +57,7 @@ class UserModel {
         const connection = await getConnection();
 
         try {
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE username = ?`, [username]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE username = ?`, [username]);
             return rows.length > 0;
         } catch (error) {
             throw error;
@@ -75,10 +74,10 @@ class UserModel {
             const saltRounds = 10;
             const hashedPassword = await bcrypt.hash(password, saltRounds);
             const connection = await getConnection();
-            const [result] = await connection.execute<OkPacket>(`INSERT INTO ${USER_TABLE_NAME} (username, email, password, type_id) VALUES (?, ?, ?, ?)`, [username, email, hashedPassword, 1]);
+            const [result] = await connection.execute<OkPacket>(`INSERT INTO ${TABLE_NAME.USER} (username, email, password, type_id) VALUES (?, ?, ?, ?)`, [username, email, hashedPassword, 1]);
             const insertedId = result.insertId;
 
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [insertedId]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE id = ?`, [insertedId]);
             const user = rows[0];
             return user;
 
@@ -98,7 +97,7 @@ class UserModel {
             const connection = await getConnection();
             console.log('312321');
 
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME}`);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER}`);
             console.log('asdadad');
 
             connection.release();
@@ -112,7 +111,7 @@ class UserModel {
         const connection = await getConnection();
 
         try {
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE id = ?`, [id]);
 
             if (rows.length) {
                 return rows[0];
@@ -130,15 +129,15 @@ class UserModel {
         const connection = await getConnection();
         try {
             const { id, email } = userData;
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE id = ?`, [id]);
             const user = rows[0];
 
             if (!user) {
                 throw new Api404Error(`User with id: ${id} not found`);
             }
 
-            await connection.execute<OkPacket>(`UPDATE ${USER_TABLE_NAME} SET email = ? WHERE id = ?`, [email, id]);
-            const [updatedRows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
+            await connection.execute<OkPacket>(`UPDATE ${TABLE_NAME.USER} SET email = ? WHERE id = ?`, [email, id]);
+            const [updatedRows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE id = ?`, [id]);
 
 
             if (updatedRows.length) {
@@ -157,14 +156,14 @@ class UserModel {
         const connection = await getConnection();
 
         try {
-            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
+            const [rows] = await connection.query<IUser[]>(`SELECT * FROM ${TABLE_NAME.USER} WHERE id = ?`, [id]);
             const user = rows[0];
 
             if (!user) {
                 throw new Api404Error(`User with id: ${id} not found`);
             }
 
-            await connection.execute<OkPacket>(`DELETE FROM ${USER_TABLE_NAME} WHERE id = ?`, [id]);
+            await connection.execute<OkPacket>(`DELETE FROM ${TABLE_NAME.USER} WHERE id = ?`, [id]);
         } catch (error) {
             throw error;
         } finally {

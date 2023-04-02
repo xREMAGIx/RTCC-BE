@@ -4,6 +4,9 @@ import cors from "cors";
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from "express";
 import helmet from "helmet";
+import ws from 'ws';
+import { WebsocketProvider } from 'y-websocket';
+import * as Y from 'yjs';
 import { APIError, errorHandler } from "./middleware/errorHandler";
 import { loggerMiddleware } from "./middleware/logger";
 import routes from "./routes";
@@ -36,6 +39,31 @@ app.use(async (err: APIError, req: Request, res: Response, next: NextFunction) =
     await errorHandler.handleError(err);
     errorHandler.returnError(err, req, res, next);
 });
+
+const ydoc = new Y.Doc();
+const yText = ydoc.getText('monaco');
+
+const wsProvider = new WebsocketProvider(
+    'ws://localhost:1234', 'my-roomname',
+    ydoc,
+    { WebSocketPolyfill: ws as any }
+)
+
+wsProvider.on('status', (event: any) => {
+    console.log(event.status); // logs "connected" or "disconnected"
+});
+
+const ydocAwareness = wsProvider.awareness;
+
+ydocAwareness.on('update', ({ added, updated, removed }: any) => {
+    // handle awareness updates
+    console.log({ added });
+    console.log({ updated });
+    console.log({ removed });
+    console.log(yText.toString());
+});
+
+yText.insert(0, 'Hello world!');
 
 // Only generate a token for lower level environments
 if (process.env.NODE_ENV !== 'production') {

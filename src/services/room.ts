@@ -35,6 +35,21 @@ export class RoomService {
         }
     }
 
+    // Get a room by code
+    async getRoomByCode(roomCode: string): Promise<Partial<IRoom>> {
+        try {
+            const room = await Room.getByCode(roomCode);
+            if (!room) {
+                throw new Api404Error(`Room with code: ${roomCode} not found`)
+            }
+            const resRoom = { ...room } as Partial<IRoom>;
+            delete resRoom.password;
+            return resRoom;
+        } catch (error) {
+            throw new Api500Error();
+        }
+    }
+
     // Create a new room
     async createRoom(params: CreateRoomParams): Promise<IRoom> {
         const room = await Room.createRoom(params);

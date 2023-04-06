@@ -4,8 +4,8 @@ import cors from "cors";
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from "express";
 import helmet from "helmet";
-import * as WebSocket from 'ws';
-import ws from 'ws'
+import { User } from "models/user";
+import ws, * as WebSocket from 'ws';
 import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 import { APIError, errorHandler } from "./middleware/errorHandler";
@@ -43,16 +43,22 @@ app.use(async (err: APIError, req: Request, res: Response, next: NextFunction) =
 
 const connections: Map<string, Set<WebSocket>> = new Map();
 const ySocketConnections: Map<string, WebsocketProvider> = new Map();
+const userConnections: Map<string, Set<string>> = new Map();
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-wss.on('connection', (currWs: WebSocket, req) => {
+wss.on('connection', async (currWs: WebSocket, req) => {
     // Parse the room id from the request URL
-    const roomId = (req.url || '').split('/')[1];
+    const url = new URL((req.url || ''), 'http://localhost:8080');
+    const roomId = url.searchParams.get('roomId') || '';
+    const userId = url.searchParams.get('userId') || '';
+
+    const user = await User.readById(userId);
 
     // Add the WebSocket to the connections Map for the room
     if (!connections.has(roomId)) {
         connections.set(roomId, new Set());
+        userConnections.set(roomId, new Set());
 
         // Create a Yjs document for the room
         const ydoc = new Y.Doc();
@@ -78,21 +84,25 @@ wss.on('connection', (currWs: WebSocket, req) => {
         wsProvider.on('status', (event: any) => {
             console.log(roomId, event.status); // logs "connected" or "disconnected"
         });
-
-        const ydocAwareness = wsProvider.awareness;
-
     }
     connections.get(roomId)?.add(currWs);
+    userConnections.get(roomId)?.add(userId);
+    broadcastClientCount(currWs, roomId);
 
-    // ydocAwareness.setLocalStateField('user', { name: 'user' });
-    // ydocAwareness.on('update', ({ added, updated, removed }: any) => {
-    //     // handle awareness updates
-    //     console.log({ added });
-    //     console.log({ updated });
-    //     console.log({ removed });
-    //     console.log(yText.toString());
-    // });
+    if (userConnections.get(roomId)?.size) {
 
+        if (user) {
+            const joinMessage = JSON.stringify({
+                type: 'user-joined',
+                payload: {
+                    userId,
+                    name: user.username,
+                }
+            });
+
+            broadcastToRoom(currWs, roomId, joinMessage);
+        }
+    }
     // Listen for WebSocket messages
     // currWs.on('message', (message: string) => {
     //     console.log(`Received message: ${message}`);
@@ -100,9 +110,25 @@ wss.on('connection', (currWs: WebSocket, req) => {
 
     // Listen for WebSocket disconnections
     currWs.on('close', () => {
-        console.log(roomId, 'close');
-        // ySocketConnections.get(roomId)?.disconnect();
+        if (user) {
+            const leaveMessage = JSON.stringify({
+                type: 'user-leaved',
+                payload: {
+                    userId,
+                    name: user.username,
+                }
+            });
+            broadcastToRoom(currWs, roomId, leaveMessage);
+        }
+
+
         connections.get(roomId)?.delete(currWs);
+        userConnections.get(roomId)?.delete(userId);
+        broadcastClientCount(currWs, roomId);
+
+        if (!connections.get(roomId)?.size) {
+            ySocketConnections.get(roomId)?.destroy();
+        }
     });
 });
 
@@ -125,3 +151,23 @@ process.on('uncaughtException', (error: Error) => {
         process.exit(1);
     }
 });
+
+function broadcastClientCount(currWs: WebSocket, roomId: string) {
+    const clientsCount = userConnections.get(roomId)?.size;
+    const clientsCountMessage = JSON.stringify({
+        type: 'room-clients',
+        payload: {
+            clientsCount,
+        }
+    });
+    broadcastToRoom(currWs, roomId, clientsCountMessage);
+}
+
+function broadcastToRoom(currWs: WebSocket, roomId: string, message: string) {
+    const wsSet = connections.get(roomId)?.values();
+    if (wsSet) {
+        for (const wsItem of wsSet) {
+            wsItem.send(message);
+        }
+    };
+}

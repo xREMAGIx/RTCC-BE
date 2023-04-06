@@ -23,6 +23,16 @@ export const getRoomById = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
+export const getRoomByCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const roomCode = req.params.code;
+        const room = await roomService.getRoomByCode(roomCode);
+        res.status(200).json({ data: room });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const createRoom = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const roomData = req.body;

@@ -1,4 +1,4 @@
-import { createRoom, deleteRoom, getAllRooms } from 'controllers/room';
+import { createRoom, deleteRoom, getAllRooms, getRoomByCode } from 'controllers/room';
 import { Router } from 'express';
 import { authMiddleware } from 'middleware/auth';
 
@@ -8,8 +8,8 @@ roomRoutes.get('/list', authMiddleware, async (req, res, next) => {
     await getAllRooms(req, res, next);
 });
 
-roomRoutes.get('/detail', (req, res) => {
-    res.send("Room detail");
+roomRoutes.get('/detail/:code', async (req, res, next) => {
+    await getRoomByCode(req, res, next);
 });
 
 roomRoutes.post('/create', authMiddleware, async (req, res, next) => {

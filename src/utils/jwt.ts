@@ -56,7 +56,7 @@ export function generateToken(payload: TokenPayloadParams) {
         // to generate the JWT. The client gets a public key to validate the 
         // signature
         algorithm: 'RS256',
-        expiresIn: '1h'
+        expiresIn: '1d'
     };
 
     // generate JWT

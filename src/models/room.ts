@@ -88,6 +88,22 @@ class RoomModel {
         }
     }
 
+    async getByCode(code: string): Promise<IRoom | null> {
+        const connection = await getConnection();
+        try {
+            const [rows] = await connection.query<IRoom[]>(`SELECT * FROM ${TABLE_NAME.ROOM} WHERE code = ?`, [code]);
+
+            if (rows.length) {
+                return rows[0];
+            }
+            return null;
+        } catch (error) {
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
     async update(roomData: Omit<IRoom, "password">): Promise<IRoom | null> {
         const connection = await getConnection();
         try {

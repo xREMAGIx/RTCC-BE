@@ -29,6 +29,7 @@ export class RoomService {
             }
             const resRoom = { ...room } as Partial<IRoom>;
             delete resRoom.password;
+            delete resRoom.ydoc;
             return resRoom;
         } catch (error) {
             throw new Api500Error();
@@ -44,6 +45,7 @@ export class RoomService {
             }
             const resRoom = { ...room } as Partial<IRoom>;
             delete resRoom.password;
+            delete resRoom.ydoc;
             return resRoom;
         } catch (error) {
             throw new Api500Error();

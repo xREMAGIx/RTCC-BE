@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from "express";
 import helmet from "helmet";
+import { Room } from "models/room";
 import { User } from "models/user";
 import ws, * as WebSocket from 'ws';
 import { WebsocketProvider } from 'y-websocket';
@@ -44,6 +45,7 @@ app.use(async (err: APIError, req: Request, res: Response, next: NextFunction) =
 const connections: Map<string, Set<WebSocket>> = new Map();
 const ySocketConnections: Map<string, WebsocketProvider> = new Map();
 const userConnections: Map<string, Set<string>> = new Map();
+const yDocConnections: Map<string, Y.Doc> = new Map();
 
 const wss = new WebSocket.Server({ port: 8080 });
 
@@ -62,7 +64,6 @@ wss.on('connection', async (currWs: WebSocket, req) => {
 
         // Create a Yjs document for the room
         const ydoc = new Y.Doc();
-        const yText = ydoc.getText('monaco');
 
         // Create a Yjs awareness instance for the client
         const wsProvider = new WebsocketProvider(
@@ -70,7 +71,15 @@ wss.on('connection', async (currWs: WebSocket, req) => {
             ydoc,
             { WebSocketPolyfill: ws as any }
         )
+        yDocConnections.set(roomId, ydoc);
         ySocketConnections.set(roomId, wsProvider);
+
+        const room = await Room.getByCode(roomId);
+        if (room && room.ydoc) {
+            const retrievedState = new Uint8Array(JSON.parse(room.ydoc)) // Convert string to Uint8Array
+            Y.applyUpdate(ydoc, retrievedState)
+        }
+
 
         // Send the Yjs updates to all connected clients in the room
         wsProvider.on('update', (update: Uint8Array, origin: any) => {
@@ -87,7 +96,7 @@ wss.on('connection', async (currWs: WebSocket, req) => {
     }
     connections.get(roomId)?.add(currWs);
     userConnections.get(roomId)?.add(userId);
-    broadcastClientCount(currWs, roomId);
+    broadcastClientCount(roomId);
 
     if (userConnections.get(roomId)?.size) {
 
@@ -100,7 +109,7 @@ wss.on('connection', async (currWs: WebSocket, req) => {
                 }
             });
 
-            broadcastToRoom(currWs, roomId, joinMessage);
+            broadcastToRoom(roomId, joinMessage);
         }
     }
     // Listen for WebSocket messages
@@ -118,15 +127,18 @@ wss.on('connection', async (currWs: WebSocket, req) => {
                     name: user.username,
                 }
             });
-            broadcastToRoom(currWs, roomId, leaveMessage);
+            broadcastToRoom(roomId, leaveMessage);
         }
 
 
         connections.get(roomId)?.delete(currWs);
         userConnections.get(roomId)?.delete(userId);
-        broadcastClientCount(currWs, roomId);
+        broadcastClientCount(roomId);
 
         if (!connections.get(roomId)?.size) {
+            saveYDocToMySQL(roomId);
+            yDocConnections.delete(roomId);
+            ySocketConnections.get(roomId)?.awareness.destroy();
             ySocketConnections.get(roomId)?.destroy();
         }
     });
@@ -152,7 +164,7 @@ process.on('uncaughtException', (error: Error) => {
     }
 });
 
-function broadcastClientCount(currWs: WebSocket, roomId: string) {
+function broadcastClientCount(roomId: string) {
     const clientsCount = userConnections.get(roomId)?.size;
     const clientsCountMessage = JSON.stringify({
         type: 'room-clients',
@@ -160,14 +172,31 @@ function broadcastClientCount(currWs: WebSocket, roomId: string) {
             clientsCount,
         }
     });
-    broadcastToRoom(currWs, roomId, clientsCountMessage);
+    broadcastToRoom(roomId, clientsCountMessage);
 }
 
-function broadcastToRoom(currWs: WebSocket, roomId: string, message: string) {
+function broadcastToRoom(roomId: string, message: string) {
     const wsSet = connections.get(roomId)?.values();
     if (wsSet) {
         for (const wsItem of wsSet) {
             wsItem.send(message);
         }
     };
+}
+
+// Function to save yDoc to MySQL
+async function saveYDocToMySQL(roomId: string) {
+    try {
+        const yDoc = yDocConnections.get(roomId);
+
+        if (yDoc) {
+            const yDocString = Y.encodeStateAsUpdate(yDoc);
+            const stringifiedYDoc = JSON.stringify(Array.from(yDocString)) // Convert Uint8Array to string
+
+            const room = await Room.saveYDocByCode(roomId, stringifiedYDoc);
+            console.log(`YDoc saved to MySQL with ID ${room.id}`);
+        }
+    } catch (err) {
+        console.error(`Error saving YDoc to MySQL: ${err}`);
+    }
 }

@@ -12,6 +12,7 @@ export interface IRoom extends RowDataPacket {
     description?: string;
     created_at: Date;
     updated_at: Date;
+    ydoc: string;
 }
 
 export interface CreateRoomParams {
@@ -143,6 +144,34 @@ class RoomModel {
             }
 
             await connection.execute<OkPacket>(`DELETE FROM ${TABLE_NAME.ROOM} WHERE id = ?`, [id]);
+        } catch (error) {
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    async saveYDocByCode(code: string, yDoc: string): Promise<IRoom> {
+        const connection = await getConnection();
+
+        try {
+            const [rows] = await connection.query<IRoom[]>(`SELECT * FROM ${TABLE_NAME.ROOM} WHERE code = ?`, [code]);
+            const room = rows[0];
+
+            if (!room) {
+                throw new Api404Error(`Room with code: ${code} not found`);
+            }
+
+            await connection.execute<OkPacket>(`UPDATE ${TABLE_NAME.ROOM} SET ydoc = ? WHERE code = ?`, [yDoc, code]);
+
+            const [updatedRows] = await connection.query<IRoom[]>(`SELECT * FROM ${TABLE_NAME.ROOM} WHERE code = ?`, [code]);
+
+            if (updatedRows.length) {
+                return updatedRows[0];
+            }
+            const updatedRoom = updatedRows[0];
+            return updatedRoom;
+
         } catch (error) {
             throw error;
         } finally {
